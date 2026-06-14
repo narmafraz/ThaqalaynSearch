@@ -16,8 +16,9 @@ Part of the bandwidth-first search overhaul — see
 - `lib/normalize-arabic.mjs` — Arabic normalizer mirroring the Python canonical
   (`ThaqalaynDataGenerator/app/arabic_normalization.py`). The Angular query path
   uses the same logic; a parity fixture keeps them in sync.
-- `netlify.toml` — CORS + cache headers (mirrors `ThaqalaynWords`).
-- `<lang>/`, `qref.json`, `manifest.json` — the generated bundle (committed).
+- `netlify.toml` — CORS + cache headers (mirrors `ThaqalaynWords`); publish dir is `dist/`.
+- `dist/` — the generated bundle (`<lang>/`, `qref.json`, `manifest.json`). **Gitignored** (~650K files / 2.7 GB at full coverage) and deployed via Netlify CLI:
+  `netlify deploy --prod --dir=dist`.
 
 ## Build
 

@@ -16,7 +16,7 @@ import { normalizeArabic } from "./lib/normalize-arabic.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(HERE, "..", "ThaqalaynData");
-const OUT = HERE;
+const OUT = path.join(HERE, "dist"); // deploy-clean output dir (gitignored; netlify publish root)
 const LANGS = ["ar", "en", "ur", "fa", "tr", "id", "bn", "es", "fr", "de", "ru", "zh"];
 const ONLY_BOOKS = process.argv.slice(2);
 

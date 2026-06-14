@@ -1,7 +1,7 @@
 # ThaqalaynSearch — static Pagefind bundle, served to the Angular app cross-origin.
 # The committed bundle IS the site; no build runs on Netlify.
 [build]
-  publish = "."
+  publish = "dist"
   command = ""
 
 [build.environment]
