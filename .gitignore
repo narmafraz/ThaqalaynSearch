@@ -1,0 +1,23 @@
+node_modules/
+.DS_Store
+*.log
+
+# Generated parity fixture (reproducible via tests/parity-check.py)
+tests/parity_py.json
+
+# Generated Pagefind bundle — built locally, deployed via Netlify CLI.
+# Kept out of git because the full bundle is hundreds of thousands of files.
+/manifest.json
+/qref.json
+/ar/
+/en/
+/ur/
+/fa/
+/tr/
+/id/
+/bn/
+/es/
+/fr/
+/de/
+/ru/
+/zh/

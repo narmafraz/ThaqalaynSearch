@@ -1,0 +1,46 @@
+# ThaqalaynSearch — static Pagefind bundle, served to the Angular app cross-origin.
+# The committed bundle IS the site; no build runs on Netlify.
+[build]
+  publish = "."
+  command = ""
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# CORS for all paths — the Angular UI (thaqalayn.netlify.app) fetches from here.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+    Cache-Control = "public, max-age=3600"
+
+# Pagefind content assets are content-hashed in their filenames -> immutable.
+# (If Netlify ignores the nested-wildcard form, the /* rule above still applies.)
+[[headers]]
+  for = "/*/fragment/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*/index/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Per-language entry manifest changes every build -> always revalidate.
+[[headers]]
+  for = "/*/pagefind-entry.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Top-level manifest + Quran cross-ref index change with the corpus -> short cache.
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/qref.json"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
