@@ -92,6 +92,6 @@ function deployOne(t) {
 console.log(`Deploying ${targets.length} site(s): ${targets.map((t) => t.name).join(", ")}`);
 for (const t of targets) deployOne(t);
 
-// all done — clear state so the next build starts fresh
-fs.rmSync(STATE_FILE, { force: true });
-console.log(`\n✓ All ${targets.length} site(s) deployed.`);
+// Keep the state file: a re-run for the same data_version then skips every site
+// (no-op). A new build (new data_version) resets it -> full redeploy.
+console.log(`\n✓ All ${targets.length} site(s) deployed (state kept for resume/no-op on re-run).`);
