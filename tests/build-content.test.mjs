@@ -251,3 +251,29 @@ test("buildContent ar falls back to legacy key_terms when no key_terms_keys", ()
   const out = buildContent(v, "ar", null);
   assert.ok(out.includes(sabr), "legacy ar key_terms key not indexed");
 });
+
+// --- v3 / v4 schema coverage (the indexer must handle both) ---
+
+// v3 = legacy monolithic (per-language AI inline) and may carry word_analysis.
+// v4 = per-language split (sisters) with key_terms_keys + available_languages on
+// the base and word_analysis as a base remnant. word_analysis is never a search
+// source; this guards that neither shape regresses to empty content.
+test("v3 legacy (monolithic + word_analysis remnant) still builds from inline AI", () => {
+  const v = legacyShapeVerse();
+  v.ai.word_analysis = [{ word: "x", pos: "N", translation: { en: "thing", fa: "z" } }]; // v3 remnant
+  const content = buildContent(v, "en", null);
+  assert.ok(content.includes("Legacy English summary"), "v3 inline summary not indexed");
+  assert.ok(content.includes("Informed us"), "v3 translation not indexed");
+  assert.ok(content.length > 0);
+});
+
+test("v4 split (key_terms_keys + available_languages + word_analysis base): ar/en/fa all non-empty", () => {
+  const v = splitShapeVerse();
+  v.ai.word_analysis = [{ word: "x", pos: "N" }]; // base remnant, must be ignored
+  const ar = buildContent(v, "ar", null);
+  const en = buildContent(v, "en", splitShapeSister("en"));
+  const fa = buildContent(v, "fa", splitShapeSister("fa"));
+  assert.ok(ar.length > 0, "ar content empty under v4 split schema");
+  assert.ok(en.length > 0, "en content empty under v4 split schema");
+  assert.ok(fa.length > 0, "fa content empty under v4 split schema");
+});
