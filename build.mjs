@@ -21,7 +21,9 @@ import { buildContent, filtersFor, loadSister } from "./lib/build-content.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(HERE, "..", "ThaqalaynData");
-const OUT = path.join(HERE, "dist"); // deploy-clean output dir (gitignored; netlify publish root)
+const OUT = path.join(HERE, "dist"); // deploy-clean output dir (gitignored)
+const META = path.join(OUT, "_meta"); // meta site publish dir: manifest.json + qref.json
+fs.mkdirSync(META, { recursive: true });
 const LANGS = ["ar", "en", "ur", "fa", "tr", "id", "bn", "es", "fr", "de", "ru", "zh"];
 // Fail the build if any of these langs end up empty. Guards against silent
 // regressions like a verse-detail schema change that strips all per-lang
@@ -74,7 +76,7 @@ for (const { v } of verses) {
 }
 const qrefOut = {};
 for (const k of Object.keys(qref).sort()) qrefOut[k] = [...qref[k]].sort();
-fs.writeFileSync(path.join(OUT, "qref.json"), JSON.stringify(qrefOut));
+fs.writeFileSync(path.join(META, "qref.json"), JSON.stringify(qrefOut));
 console.log(`Wrote qref.json (${Object.keys(qrefOut).length} refs)`);
 
 // --- per-language Pagefind indexes ---
@@ -121,5 +123,5 @@ const manifest = {
   languages: builtLangs,
   filters: ["book", "content_type", "has_chain", "topic", "tag"],
 };
-fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
+fs.writeFileSync(path.join(META, "manifest.json"), JSON.stringify(manifest, null, 2));
 console.log(`Wrote manifest.json (langs: ${builtLangs.map((l) => l.code).join(", ")})`);

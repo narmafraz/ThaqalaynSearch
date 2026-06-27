@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildContent, chunkText, humanTranslation, loadSister } from "../lib/build-content.mjs";
+import { buildContent, chunkText, humanTranslation, loadSister, filtersFor } from "../lib/build-content.mjs";
 
 // Verse in the split shape (current): per-language AI fields stripped from
 // base; live in sister files.
@@ -199,4 +199,55 @@ test("loadSister reads parsed JSON from disk", () => {
   } finally {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   }
+});
+
+// --- filtersFor (facet metadata) ---
+
+test("filtersFor maps all facet fields from ai", () => {
+  const v = { ai: { content_type: "hadith", isnad_matn: { has_chain: true }, topics: ["a", "b"], tags: ["x"] } };
+  const f = filtersFor(v, "al-kafi");
+  assert.deepEqual(f.book, ["al-kafi"]);
+  assert.deepEqual(f.content_type, ["hadith"]);
+  assert.deepEqual(f.has_chain, ["yes"]);
+  assert.deepEqual(f.topic, ["a", "b"]);
+  assert.deepEqual(f.tag, ["x"]);
+});
+
+test("filtersFor defaults when ai is missing/empty", () => {
+  const f = filtersFor({}, "quran");
+  assert.deepEqual(f.book, ["quran"]);
+  assert.deepEqual(f.content_type, []);  // omitted when absent
+  assert.deepEqual(f.has_chain, ["no"]); // no isnad_matn -> "no"
+  assert.deepEqual(f.topic, []);
+  assert.deepEqual(f.tag, []);
+});
+
+// --- buildContent edge cases ---
+
+// The empty-string return is load-bearing: build.mjs skips records with empty
+// content, and REQUIRED_LANGS turns an all-empty language into a hard error.
+test("buildContent returns empty string when a language has no content", () => {
+  const v = { path: "/books/x:1", text: ["x"], translations: {}, ai: { topics: [] } };
+  assert.equal(buildContent(v, "fr", null), "");
+});
+
+test("buildContent (non-ar) with no ai uses human translation only", () => {
+  const v = { translations: { "en.qarai": ["Hello world"] } };
+  assert.equal(buildContent(v, "en", null), "Hello world");
+});
+
+test("buildContent ar with no ai uses normalized base text only (diacritics stripped)", () => {
+  const fatha = String.fromCharCode(0x064e);
+  // العَقل (with a fatha that must be stripped)
+  const withFatha = String.fromCharCode(0x0627, 0x0644, 0x0639, 0x064e, 0x0642, 0x0644);
+  const out = buildContent({ text: [withFatha] }, "ar", null);
+  assert.ok(out.length > 0, "ar content empty");
+  assert.ok(!out.includes(fatha), "fatha not stripped by normalizer");
+});
+
+test("buildContent ar falls back to legacy key_terms when no key_terms_keys", () => {
+  const sabr = String.fromCharCode(0x0627, 0x0644, 0x0635, 0x0628, 0x0631); // الصبر
+  const v = { text: [String.fromCharCode(0x0646, 0x0635)], ai: { key_terms: { en: { [sabr]: "patience" } } } };
+  const out = buildContent(v, "ar", null);
+  assert.ok(out.includes(sabr), "legacy ar key_terms key not indexed");
 });

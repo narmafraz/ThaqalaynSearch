@@ -1,11 +1,25 @@
 # ThaqalaynSearch
 
-Static [Pagefind](https://pagefind.app) search bundle for the Thaqalayn corpus,
-deployed to **thaqalaynsearch.netlify.app** and consumed cross-origin by the
-Angular app (`environment.searchBaseUrl`).
+Static [Pagefind](https://pagefind.app) search bundles for the Thaqalayn corpus,
+consumed cross-origin by the Angular app.
 
 Part of the bandwidth-first search overhaul — see
 `Thaqalayn/docs/SEARCH_OVERHAUL_PLAN.md`.
+
+## Hosting topology (multiple sites)
+
+A single Netlify site can't take the full ~650K-file bundle (a full-corpus
+single-site deploy was attempted and is impractical). Pagefind writes ~one
+fragment file per verse per language, so the bundle is sharded **one site per
+language**, plus a tiny meta site:
+
+| Site | Serves |
+|------|--------|
+| `thaqalaynsearch.netlify.app` | meta: `manifest.json` + `qref.json` |
+| `thaqalaynsearch-<lang>.netlify.app` | that language's Pagefind bundle (served at root) |
+
+The client reads `manifest.json` from the meta site to know which languages are
+built, then loads the chosen language's Pagefind bundle from its own site.
 
 ## What's here
 
@@ -16,9 +30,11 @@ Part of the bandwidth-first search overhaul — see
 - `lib/normalize-arabic.mjs` — Arabic normalizer mirroring the Python canonical
   (`ThaqalaynDataGenerator/app/arabic_normalization.py`). The Angular query path
   uses the same logic; a parity fixture keeps them in sync.
-- `netlify.toml` — CORS + cache headers (mirrors `ThaqalaynWords`); publish dir is `dist/`.
-- `dist/` — the generated bundle (`<lang>/`, `qref.json`, `manifest.json`). **Gitignored** (~650K files / 2.7 GB at full coverage) and deployed via Netlify CLI:
-  `netlify deploy --prod --dir=dist`.
+- `netlify.toml` — CORS + cache headers; paths are root-relative (each language
+  site serves its bundle at root).
+- `dist/<lang>/`, `dist/qref.json`, `dist/manifest.json` — the generated bundle.
+  **Gitignored** (~650K files / 2.7 GB at full coverage); deployed via Netlify CLI.
+- `tests/` — `build-content.test.mjs` (`npm test`) + the normalizer parity check.
 
 ## Build
 
@@ -26,12 +42,25 @@ Part of the bandwidth-first search overhaul — see
 npm install
 npm run build                 # all books, all languages
 node build.mjs al-amali-mufid # limit to book slugs (for testing)
+npm test                      # unit tests for buildContent / filters
 ```
 
-Per the corpus's per-verse design, Pagefind writes ~one fragment file per verse
-per language, so the full bundle is large (hundreds of thousands of files). Only
-languages with content are built (`manifest.json` lists them).
+Only languages with content are built (`manifest.json` lists them).
 
-Run after `ThaqalaynDataGenerator/add_data.ps1` has regenerated `ThaqalaynData`,
-via the generator's `regen_search.ps1` (kept out of the routine `add_data.ps1`
-run because it is slow — same convention as `regen_words.ps1`).
+## Deploy
+
+Each `dist/<lang>/` is a self-contained Pagefind bundle. Deploy each as its own
+prebuilt site (run once `netlify login` is set up):
+
+```bash
+# one language (e.g. testing en)
+netlify deploy --prod --no-build --dir=dist/en --site thaqalaynsearch-en
+
+# meta site
+netlify deploy --prod --no-build --dir=dist/_meta --site thaqalaynsearch
+```
+
+Normally driven by the generator's **`regen_search.ps1`** (build, and `-Deploy`
+to build + deploy meta + all built languages; `-Langs en` to limit). Kept out of
+the routine `add_data.ps1` run because it is slow — same convention as
+`regen_words.ps1`.

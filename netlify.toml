@@ -1,5 +1,13 @@
-# ThaqalaynSearch — static Pagefind bundle, served to the Angular app cross-origin.
-# The committed bundle IS the site; no build runs on Netlify.
+# ThaqalaynSearch — static Pagefind bundles, served to the Angular app cross-origin.
+#
+# Deployed as MULTIPLE sites (one per language is too many files for a single
+# Netlify site — see SEARCH_OVERHAUL_PLAN.md):
+#   - thaqalaynsearch.netlify.app        -> meta site: manifest.json + qref.json
+#   - thaqalaynsearch-<lang>.netlify.app -> that language's Pagefind bundle (served at root)
+#
+# Each deploy is a prebuilt directory (`netlify deploy --no-build --dir=...`), so
+# this config only supplies headers. Paths are root-relative because each
+# language site serves its bundle from the site root.
 [build]
   publish = "dist"
   command = ""
@@ -7,7 +15,7 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# CORS for all paths — the Angular UI (thaqalayn.netlify.app) fetches from here.
+# CORS for all paths — the Angular UI (thaqalayn.netlify.app) fetches cross-origin.
 [[headers]]
   for = "/*"
   [headers.values]
@@ -17,24 +25,23 @@
     Cache-Control = "public, max-age=3600"
 
 # Pagefind content assets are content-hashed in their filenames -> immutable.
-# (If Netlify ignores the nested-wildcard form, the /* rule above still applies.)
 [[headers]]
-  for = "/*/fragment/*"
+  for = "/fragment/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/*/index/*"
+  for = "/index/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Per-language entry manifest changes every build -> always revalidate.
+# The entry manifest + wasm/meta change every build -> always revalidate the entry.
 [[headers]]
-  for = "/*/pagefind-entry.json"
+  for = "/pagefind-entry.json"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# Top-level manifest + Quran cross-ref index change with the corpus -> short cache.
+# Meta site: manifest + Quran cross-ref index change with the corpus -> short cache.
 [[headers]]
   for = "/manifest.json"
   [headers.values]
