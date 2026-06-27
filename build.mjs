@@ -5,6 +5,11 @@
 // repo (deployed to thaqalaynsearch.netlify.app). Self-contained Node build —
 // no Python step. Run via `npm run build` or the generator's regen_search.ps1.
 //
+// Per-language AI content (summary / chunks / key_terms / word_analysis) comes
+// from sister files `{path}.{lang}.json` (see PER_LANGUAGE_VERSE_SPLIT.md). For
+// data still in the legacy monolithic shape, `buildContent` falls back to the
+// inline `v.ai.summaries[lang]` etc.
+//
 // Usage:
 //   node build.mjs                  # all books, all languages
 //   node build.mjs al-amali-mufid   # limit to given book slugs (for testing)
@@ -12,12 +17,16 @@ import * as pagefind from "pagefind";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeArabic } from "./lib/normalize-arabic.mjs";
+import { buildContent, filtersFor, loadSister } from "./lib/build-content.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(HERE, "..", "ThaqalaynData");
 const OUT = path.join(HERE, "dist"); // deploy-clean output dir (gitignored; netlify publish root)
 const LANGS = ["ar", "en", "ur", "fa", "tr", "id", "bn", "es", "fr", "de", "ru", "zh"];
+// Fail the build if any of these langs end up empty. Guards against silent
+// regressions like a verse-detail schema change that strips all per-lang
+// content (the 2026-06 per-language split was such a near-miss).
+const REQUIRED_LANGS = ["ar", "en"];
 const ONLY_BOOKS = process.argv.slice(2);
 
 function discoverBooks() {
@@ -38,6 +47,8 @@ function* walkVerseDetails(bookSlug) {
       const p = path.join(dir, ent.name);
       if (ent.isDirectory()) stack.push(p);
       else if (ent.name.endsWith(".json")) {
+        // Skip per-language sister files; they're loaded on demand per lang.
+        if (/\.[a-z]{2}\.json$/.test(ent.name)) continue;
         try {
           const j = JSON.parse(fs.readFileSync(p, "utf8"));
           if (j.kind === "verse_detail" && j.data?.verse) yield j.data.verse;
@@ -45,46 +56,6 @@ function* walkVerseDetails(bookSlug) {
       }
     }
   }
-}
-
-function humanTranslation(v, lang) {
-  for (const [id, txt] of Object.entries(v.translations || {})) {
-    if (id.startsWith(lang + ".") && id !== lang + ".ai" && id !== "en.transliteration") {
-      return Array.isArray(txt) ? txt.join(" ") : String(txt);
-    }
-  }
-  return "";
-}
-
-const chunkText = (v, lang) =>
-  (v.ai?.chunks || []).map((c) => c.translations?.[lang]).filter(Boolean).join(" ");
-
-function buildContent(v, lang) {
-  const ai = v.ai || {};
-  const parts = [];
-  if (lang === "ar") {
-    parts.push(normalizeArabic((v.text || []).join(" ")));
-    const terms = ai.key_terms?.en || ai.key_terms?.ar || {};
-    parts.push(normalizeArabic(Object.keys(terms).join(" ")));
-    for (const kp of ai.key_phrases || []) if (kp.phrase_ar) parts.push(normalizeArabic(kp.phrase_ar));
-  } else {
-    parts.push(humanTranslation(v, lang) || chunkText(v, lang));
-    if (ai.summaries?.[lang]) parts.push(ai.summaries[lang]);
-    if (ai.key_terms?.[lang]) parts.push(Object.values(ai.key_terms[lang]).join(" "));
-    if (lang === "en") for (const kp of ai.key_phrases || []) if (kp.phrase_en) parts.push(kp.phrase_en);
-  }
-  return parts.filter(Boolean).join("  ").trim();
-}
-
-function filtersFor(v, book) {
-  const ai = v.ai || {};
-  return {
-    book: [book],
-    content_type: ai.content_type ? [ai.content_type] : [],
-    has_chain: [ai.isnad_matn?.has_chain ? "yes" : "no"],
-    topic: ai.topics || [],
-    tag: ai.tags || [],
-  };
 }
 
 // --- collect verses once ---
@@ -112,7 +83,9 @@ for (const lang of LANGS) {
   const { index } = await pagefind.createIndex();
   let n = 0;
   for (const { book, v } of verses) {
-    const content = buildContent(v, lang);
+    // Sister only exists for non-Arabic langs (Arabic is in base.text).
+    const sister = lang === "ar" ? null : loadSister(v.path, lang, DATA);
+    const content = buildContent(v, lang, sister);
     if (!content) continue;
     await index.addCustomRecord({
       url: v.path,
@@ -123,7 +96,14 @@ for (const lang of LANGS) {
     });
     n++;
   }
-  if (n === 0) { await index.deleteIndex?.(); continue; } // coverage-gated: skip empty langs
+  if (n === 0) {
+    if (REQUIRED_LANGS.includes(lang)) {
+      throw new Error(`Search build produced 0 records for required language '${lang}'. ` +
+        `This usually means the verse-detail schema changed and buildContent is reading ` +
+        `from the wrong field. Aborting to avoid shipping an empty search index.`);
+    }
+    await index.deleteIndex?.(); continue; // coverage-gated: skip empty langs
+  }
   await index.writeFiles({ outputPath: path.join(OUT, lang) });
   builtLangs.push({ code: lang, pages: n });
   console.log(`  ${lang}: ${n} records`);

@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Static Pagefind search bundle for the Thaqalayn corpus (per-language). Deployed to thaqalaynsearch.netlify.app.",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "node --test tests/build-content.test.mjs"
   },
   "dependencies": {
     "pagefind": "^1.5.2"

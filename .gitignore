@@ -8,3 +8,6 @@ tests/parity_py.json
 # Generated Pagefind bundle — built locally into dist/, deployed via Netlify CLI.
 # Kept out of git because the full bundle is ~650K files / 2.7 GB.
 /dist/
+
+# Local Netlify folder
+.netlify
