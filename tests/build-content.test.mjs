@@ -29,7 +29,6 @@ function splitShapeVerse() {
       key_phrases: [{ phrase_ar: "بِسْمِ اللَّهِ", phrase_en: "In the name of Allah" }],
       topics: ["reasoning"],
       tags: ["theology"],
-      available_languages: ["en", "fa"],
     },
   };
 }
@@ -255,9 +254,9 @@ test("buildContent ar falls back to legacy key_terms when no key_terms_keys", ()
 // --- v3 / v4 schema coverage (the indexer must handle both) ---
 
 // v3 = legacy monolithic (per-language AI inline) and may carry word_analysis.
-// v4 = per-language split (sisters) with key_terms_keys + available_languages on
-// the base and word_analysis as a base remnant. word_analysis is never a search
-// source; this guards that neither shape regresses to empty content.
+// v4 = per-language split (sisters) with key_terms_keys on the base and
+// word_analysis as a base remnant. word_analysis is never a search source;
+// this guards that neither shape regresses to empty content.
 test("v3 legacy (monolithic + word_analysis remnant) still builds from inline AI", () => {
   const v = legacyShapeVerse();
   v.ai.word_analysis = [{ word: "x", pos: "N", translation: { en: "thing", fa: "z" } }]; // v3 remnant
@@ -267,7 +266,7 @@ test("v3 legacy (monolithic + word_analysis remnant) still builds from inline AI
   assert.ok(content.length > 0);
 });
 
-test("v4 split (key_terms_keys + available_languages + word_analysis base): ar/en/fa all non-empty", () => {
+test("v4 split (key_terms_keys + word_analysis base): ar/en/fa all non-empty", () => {
   const v = splitShapeVerse();
   v.ai.word_analysis = [{ word: "x", pos: "N" }]; // base remnant, must be ignored
   const ar = buildContent(v, "ar", null);
