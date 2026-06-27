@@ -60,7 +60,9 @@ netlify deploy --prod --no-build --dir=dist/en --site thaqalaynsearch-en
 netlify deploy --prod --no-build --dir=dist/_meta --site thaqalaynsearch
 ```
 
-Normally driven by the generator's **`regen_search.ps1`** (build, and `-Deploy`
-to build + deploy meta + all built languages; `-Langs en` to limit). Kept out of
-the routine `add_data.ps1` run because it is slow — same convention as
+Normally driven by the generator's **`regen_and_deploy_search.ps1`**, which
+builds **and deploys by default** (meta + all built languages); `-NoDeploy`
+builds only, `-Langs en` limits to one language. Both the build and the deploy
+are resumable (keyed by `data_version`). Kept out of the routine `add_data.ps1`
+run because it is slow — same convention as
 `regen_words.ps1`.
