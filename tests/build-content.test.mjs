@@ -168,6 +168,30 @@ test("humanTranslation skips ai-suffixed translation IDs", () => {
   assert.equal(humanTranslation(v, "en"), "Qarai translation");
 });
 
+test("humanTranslation reads sister chunk_translations when base is stripped", () => {
+  // align-scraped merge (2026-09): aligned scraped translations are removed
+  // from base and live only in the sister as chunk_translations[id] = parts.
+  const v = { translations: {} };
+  const sister = {
+    chunk_translations: { "en.hubeali": ["The chain narrated.", "", "The saying followed."] },
+  };
+  assert.equal(humanTranslation(v, "en", sister),
+    "The chain narrated. The saying followed.");
+  // base still wins when present (unaligned/legacy verses)
+  const v2 = { translations: { "en.sarwar": ["Flat base text"] } };
+  assert.equal(humanTranslation(v2, "en", sister), "Flat base text");
+  // transliteration is not a human translation for search purposes
+  const sister2 = { chunk_translations: { "en.transliteration": ["Ya ayyuha"] } };
+  assert.equal(humanTranslation(v, "en", sister2), "");
+});
+
+test("buildContent prefers sister chunk_translations over AI chunk text", () => {
+  const v = { translations: {}, ai: { chunks: [{ translations: { en: "AI text" } }] } };
+  const sister = { chunk_translations: { "en.hubeali": ["Human text"] } };
+  assert.ok(buildContent(v, "en", sister).includes("Human text"));
+  assert.ok(!buildContent(v, "en", sister).includes("AI text"));
+});
+
 test("chunkText prefers sister (string array) over legacy (object array)", () => {
   const v = { ai: { chunks: [{ translations: { en: "legacy en" } }] } };
   const sister = { ai: { chunks: ["sister en"] } };
